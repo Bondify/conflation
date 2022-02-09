@@ -1,40 +1,36 @@
 #!/usr/bin/env python
 # coding: utf-8
-try:
-    import os
-except ImportError as e:
-    os.system('pip install os')
-    import os
+
+import os
 import utm
-        
+import warnings
+from shapely.geometry import Point, LineString, MultiPoint, MultiLineString, box
+from shapely.ops import nearest_points
+import requests
+import pandas as pd
+from itertools import compress 
+import geopandas as gpd 
+from leuvenmapmatching.map.inmem import InMemMap
+from leuvenmapmatching.matcher.distance import DistanceMatcher
+    
+
+warnings.filterwarnings("ignore")
+
+
 def download_osm(gdf):
-    # Usage: nodes_gdf, segments_gdf = download_osm(gdf)
-    # Download libraries
-    import warnings
-    warnings.filterwarnings("ignore")
-    from shapely.geometry import Point, LineString
-    import requests
-    import pandas as pd
-    
-    from itertools import compress 
-    try:
-        import geopandas as gpd 
-    except ImportError as e:
-        os.system('pip install geopandas')
-        import geopandas as gpd
-    
+    # Usage: nodes_gdf, segments_gdf = download_osm(gdf)    
     # Define the bounding box to query
     bounds = gdf.geometry.total_bounds
 
     # Build the query for overspass-api
     overpass_url = "http://overpass-api.de/api/interpreter"
-#     overpass_query = """
-#     [out:json];
-#     (way["highway"~"motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|living_street"]
-#     ["access"!~"private|no"]
-#     ({0}, {1}, {2}, {3}););
-#     out geom;
-#     """.format(bounds[1], bounds[0], bounds[3], bounds[2])
+    #     overpass_query = """
+    #     [out:json];
+    #     (way["highway"~"motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|living_street"]
+    #     ["access"!~"private|no"]
+    #     ({0}, {1}, {2}, {3}););
+    #     out geom;
+    #     """.format(bounds[1], bounds[0], bounds[3], bounds[2])
 
     overpass_query = """
     [out:json];
@@ -148,17 +144,10 @@ def download_osm(gdf):
     
     return nodes_gdf, segments_gdf
 
+
 def create_network(nodes_gdf, segments_gdf):
     # Usage: map_con = create_network(nodes_gdf, segments_gdf)
-    # Download libraries
-    import warnings
-    warnings.filterwarnings("ignore")
-    try:
-        from leuvenmapmatching.map.inmem import InMemMap 
-    except ImportError as e:
-        os.system('pip install leuvenmapmatching')
-        from leuvenmapmatching.map.inmem import InMemMap 
-    
+
     # Create the complete graph for all the network
     # Takes a long while, better do in advance
     map_con = InMemMap("myosm", use_latlon=True, use_rtree=True, index_edges=True)
@@ -171,24 +160,9 @@ def create_network(nodes_gdf, segments_gdf):
     
     return map_con
     
+
 def buffer_shape(gdf, size_m):
-    try:
-        import utm
-    except ImportError as e:
-        os.system('pip install utm')
-        import utm
-    try:
-        import geopandas as gpd 
-    except ImportError as e:
-        os.system('pip install geopandas')
-        import geopandas as gpd
-        
-    try:
-        from geopandas import GeoDataFrame 
-    except ImportError as e:
-        os.system('pip install geopandas')
-        from geopandas import GeoDataFrame
-        
+
     gdf.index=list(range(0,len(gdf)))
     gdf.crs = {'init':'epsg:4326'}
     lat_referece = gdf.geometry[0].coords[0][1]
@@ -204,23 +178,16 @@ def buffer_shape(gdf, size_m):
     # Create the buffers for the bus lines
     # At this point each segment has a polygon (the buffer)
     buffer_size = size_m
-    buffers = GeoDataFrame(data = gdf.drop('geometry', axis=1), geometry = gdf.to_crs(epsg=epsg_code).buffer(buffer_size).to_crs(epsg=4326))
+    buffers = gpd.GeoDataFrame(data = gdf.drop('geometry', axis=1), geometry = gdf.to_crs(epsg=epsg_code).buffer(buffer_size).to_crs(epsg=4326))
     
     return buffers
     
+
 def code(gdf):
-    try:
-        import utm
-    except ImportError as e:
-        os.system('pip install utm')
-        import utm
-        
-    try:
-        import geopandas as gpd 
-    except ImportError as e:
-        os.system('pip install geopandas')
-        import geopandas as gpd
-        
+    """
+    Returns the epsg code of a dataframe according to its location.
+    The input dataframe has to be in epsg:4326 (lat and long)
+    """
     gdf.index=list(range(0,len(gdf)))
     gdf.crs = {'init':'epsg:4326'}
     try:
@@ -246,27 +213,19 @@ def code(gdf):
         
     return epsg_code
 
+
 def format_shapes(s):
-    import pandas as pd
-    
     df = pd.DataFrame()
     for k in s.keys():
         df[k] = [s[k]]
 
     return df
 
+
 def nearest_neighbor(gdf1, gdf2):
-    import pandas as pd
-    import os
-    try:
-        import geopandas as gpd
-    except:
-        os.system('pip install geopandas')
-        import geopandas as gpd
-        
-    from shapely.geometry import Point, MultiPoint
-    from shapely.ops import nearest_points
-    
+    """
+    Find nearest neighbor from points in gdf1 to gdf2
+    """
     geom1 = gdf1.geometry.name
     geom2 = gdf2.geometry.name
     
@@ -285,17 +244,10 @@ def nearest_neighbor(gdf1, gdf2):
     
     return merged
 
+
 def match_to_shape(row, map_con, col_id, updates, log_match):
     # Usage: shape_net_seg = shapes.apply(lambda row: match_to_network(row, map_con, col_id), axis=1)
     # Usage(after first step): shape_net_seg_gdf = pd.concat([pd.DataFrame.from_dict(d) for d in shape_net_seg])
-    # Download the libraries
-    import warnings
-    warnings.filterwarnings("ignore")
-    try:
-        from leuvenmapmatching.matcher.distance import DistanceMatcher 
-    except ImportError as e:
-        os.system('pip install leuvenmapmatching')
-        from leuvenmapmatching.matcher.distance import DistanceMatcher
         
     # Create the track to match to the street segments (graph above)
     # In this case I use a shape from the gtfs
@@ -362,8 +314,8 @@ def match_to_shape(row, map_con, col_id, updates, log_match):
         
         return d
 
+
 def match_to_network(shapes, map_con, col_id='', updates=False, log_match=True):
-    import pandas as pd
 
     shape_net_seg = shapes.apply(lambda row: match_to_shape(row, map_con, col_id, updates, log_match), axis=1)
 
@@ -374,17 +326,8 @@ def match_to_network(shapes, map_con, col_id='', updates=False, log_match=True):
         
     return shape_net_seg_gdf
 
-def match_id_int(row, network, shape_net_seg_gdf, bsegments_gdf, updates): 
-    from conflation import buffer_shape, code
-    from shapely.geometry import MultiLineString
-    import pandas as pd
-    
-    try:
-        import geopandas as gpd 
-    except ImportError as e:
-        os.system('pip install geopandas')
-        import geopandas as gpd
-        
+
+def match_id_int(row, network, shape_net_seg_gdf, bsegments_gdf, updates):         
     shape_id = row.shape_id # returns a string
     
     # Get the bus segments
@@ -458,6 +401,7 @@ def match_id_int(row, network, shape_net_seg_gdf, bsegments_gdf, updates):
     
     return  d
         
+
 def match_id(shapes, segments, shape_net_seg_gdf, bsegments_gdf, updates=True):
     import pandas as pd
     
@@ -467,18 +411,14 @@ def match_id(shapes, segments, shape_net_seg_gdf, bsegments_gdf, updates=True):
 
     return df
     
-def grid(gdf_in, size=200):
-    import shapely
-    try:
-        import geopandas as gpd 
-    except ImportError as e:
-        os.system('pip install geopandas')
-        import geopandas as gpd
-    #from conflation import code
 
+def grid(gdf_in, size=200):
+    """
+    Creates a squared grid for the bounding box of a given DF
+    """
     gdf_proj = gdf_in.to_crs(epsg = code(gdf_in))
-    sw = shapely.geometry.Point((gdf_proj.geometry.x.min(), gdf_proj.geometry.y.min()))
-    ne = shapely.geometry.Point((gdf_proj.geometry.x.max(), gdf_proj.geometry.y.max()))
+    sw = Point((gdf_proj.geometry.x.min(), gdf_proj.geometry.y.min()))
+    ne = Point((gdf_proj.geometry.x.max(), gdf_proj.geometry.y.max()))
 
     stepsize = size # 100 m grid step size
 
@@ -495,8 +435,8 @@ def grid(gdf_in, size=200):
           maxy = y + stepsize/2
 
           # Create the box
-          box = shapely.geometry.box(minx, miny, maxx, maxy) #minx, miny, maxx, maxy) 
-          gridpoints.append(box)
+          box_ = box(minx, miny, maxx, maxy) #minx, miny, maxx, maxy) 
+          gridpoints.append(box_)
           y += stepsize
         x += stepsize
     # Create a GeoDataFrame with the grid created above
