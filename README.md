@@ -1,5 +1,4 @@
-# Example Package
+# Conflation
 
-This is a simple example package. You can use
-[Github-flavored Markdown](https://guides.github.com/features/mastering-markdown/)
-to write your content.
+This package groups a set of functions to help you download data from OSM, and snap GPS points to the OSM street network.
+It was meant to do the matching between GTFS and OSM.
