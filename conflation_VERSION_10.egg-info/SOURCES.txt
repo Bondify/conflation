@@ -1,0 +1,8 @@
+README.md
+setup.py
+conflation/__init__.py
+conflation/conflation.py
+conflation_VERSION_10.egg-info/PKG-INFO
+conflation_VERSION_10.egg-info/SOURCES.txt
+conflation_VERSION_10.egg-info/dependency_links.txt
+conflation_VERSION_10.egg-info/top_level.txt
